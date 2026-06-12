@@ -50,6 +50,14 @@ export interface SensitivityItem {
   contribution: number;
 }
 
+export type DecisionMark = 'acceptable' | 'cost_reduce' | 'pause';
+
+export const DECISION_LABELS: Record<DecisionMark, { label: string; color: string; bg: string; border: string }> = {
+  acceptable: { label: '可接受', color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
+  cost_reduce: { label: '需降本', color: 'text-amber-300', bg: 'bg-amber-500/15', border: 'border-amber-500/40' },
+  pause: { label: '暂停推进', color: 'text-red-300', bg: 'bg-red-500/15', border: 'border-red-500/40' },
+};
+
 export interface SimulationResult {
   id: string;
   projectId: string;
@@ -69,6 +77,8 @@ export interface SimulationResult {
   sensitivity: SensitivityItem[];
   samples?: number[];
   variableSamples?: Record<string, number[]>;
+  starred?: boolean;
+  decision?: DecisionMark | null;
 }
 
 export interface CompareRecord {
@@ -118,4 +128,9 @@ export interface RunSimulationDto {
 export interface CreateCompareDto {
   name: string;
   simulationIds: string[];
+}
+
+export interface UpdateSimulationDto {
+  starred?: boolean;
+  decision?: DecisionMark | null;
 }

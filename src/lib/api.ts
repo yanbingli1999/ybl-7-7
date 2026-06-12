@@ -1,7 +1,7 @@
 import type {
   Project, ProjectWithVariables, Variable, SimulationResult, CompareRecord,
   CreateProjectDto, UpdateProjectDto, CreateVariableDto, UpdateVariableDto,
-  RunSimulationDto, CreateCompareDto,
+  RunSimulationDto, CreateCompareDto, UpdateSimulationDto,
 } from '../../shared/types.js';
 
 const API_BASE = '/api';
@@ -38,6 +38,8 @@ export const api = {
     get: (id: string) => request<SimulationResult>(`/simulations/${id}`),
     run: (projectId: string, dto: RunSimulationDto) =>
       request<SimulationResult>(`/simulations/project/${projectId}`, { method: 'POST', body: JSON.stringify(dto) }),
+    update: (id: string, dto: UpdateSimulationDto) =>
+      request<SimulationResult>(`/simulations/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
     remove: (id: string) => request<{ success: boolean }>(`/simulations/${id}`, { method: 'DELETE' }),
   },
   compare: {

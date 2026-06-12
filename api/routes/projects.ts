@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { createStore } from '../storage/fileStore.js';
-import type { Project, Variable, ProjectWithVariables, CreateProjectDto, UpdateProjectDto, CreateVariableDto } from '../../shared/types.js';
+import type { Project, Variable, ProjectWithVariables, CreateProjectDto, UpdateProjectDto, CreateVariableDto, SimulationResult } from '../../shared/types.js';
 
 const router = Router();
 const projectsStore = createStore<Project>('projects');
 const variablesStore = createStore<Variable>('variables');
-const simulationsStore = createStore<{ id: string; projectId: string }>('simulations');
+const simulationsStore = createStore<SimulationResult>('simulations');
 const comparisonsStore = createStore<{ id: string; projectId: string }>('comparisons');
 
 function getProjectWithVariables(projectId: string): ProjectWithVariables | null {
@@ -24,11 +24,14 @@ router.get('/', (_req: Request, res: Response) => {
     const lastSim = sims.length > 0
       ? (sims[sims.length - 1] as unknown as { timestamp?: string })?.timestamp || null
       : null;
+    const starred = sims.filter(s => s.starred);
+    const keyDecision = starred.find(s => s.decision) || starred[0] || null;
     return {
       ...p,
       variableCount: variables.length,
       simulationCount: sims.length,
       lastSimulationAt: lastSim,
+      keyDecision: keyDecision ? { runName: keyDecision.runName, decision: keyDecision.decision || null, starred: true, mean: keyDecision.mean, lossProbability: keyDecision.lossProbability } : null,
     };
   });
   res.json(projectsWithMeta);

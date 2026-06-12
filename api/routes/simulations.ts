@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { createStore } from '../storage/fileStore.js';
 import { runMonteCarloSimulation } from '../../shared/monteCarlo.js';
-import type { SimulationResult, Variable, RunSimulationDto, Project } from '../../shared/types.js';
+import type { SimulationResult, Variable, RunSimulationDto, Project, UpdateSimulationDto } from '../../shared/types.js';
 
 const router = Router();
 const simulationsStore = createStore<SimulationResult>('simulations');
@@ -56,6 +56,22 @@ router.post('/project/:projectId', (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ error: '模拟执行失败: ' + (error instanceof Error ? error.message : String(error)) });
   }
+});
+
+router.patch('/:id', (req: Request, res: Response) => {
+  const existing = simulationsStore.getById(req.params.id);
+  if (!existing) {
+    res.status(404).json({ error: '模拟结果不存在' });
+    return;
+  }
+
+  const dto = req.body as UpdateSimulationDto;
+  const updates: Partial<SimulationResult> = {};
+  if (dto.starred !== undefined) updates.starred = dto.starred;
+  if (dto.decision !== undefined) updates.decision = dto.decision ?? null;
+
+  const updated = simulationsStore.update(req.params.id, updates);
+  res.json(updated);
 });
 
 router.delete('/:id', (req: Request, res: Response) => {

@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Play, FolderKanban, Activity, Calendar, X } from 'lucide-react';
+import { Plus, Trash2, Play, FolderKanban, Activity, Calendar, X, Star, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/store/useAppStore';
-import type { Project } from '../../shared/types.js';
+import type { Project, DecisionMark } from '../../shared/types.js';
+import { DECISION_LABELS } from '../../shared/types.js';
 
 type ProjectListItem = Project & {
   variableCount: number;
   simulationCount: number;
   lastSimulationAt: string | null;
+  keyDecision: { runName: string; decision: DecisionMark | null; starred: boolean; mean: number; lossProbability: number } | null;
 };
 
 export default function Home() {
@@ -189,6 +191,20 @@ export default function Home() {
                   <div className="mt-3 pt-3 border-t border-monte-border/50 text-xs text-monte-muted flex items-center gap-1.5">
                     <Activity className="w-3 h-3 text-monte-safe" />
                     最近模拟: {new Date(p.lastSimulationAt).toLocaleString('zh-CN')}
+                  </div>
+                )}
+                {p.keyDecision && (
+                  <div className={`mt-2 p-2 rounded-lg border ${p.keyDecision.decision ? DECISION_LABELS[p.keyDecision.decision].border : 'border-amber-500/30'} ${p.keyDecision.decision ? DECISION_LABELS[p.keyDecision.decision].bg : 'bg-amber-500/10'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className={`w-3.5 h-3.5 ${p.keyDecision.decision ? DECISION_LABELS[p.keyDecision.decision].color : 'text-amber-300'}`} />
+                        <span className={`text-[10px] font-semibold ${p.keyDecision.decision ? DECISION_LABELS[p.keyDecision.decision].color : 'text-amber-300'}`}>
+                          {p.keyDecision.decision ? DECISION_LABELS[p.keyDecision.decision].label : '已收藏'}
+                        </span>
+                        <span className="text-[10px] text-monte-muted">· {p.keyDecision.runName}</span>
+                      </div>
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    </div>
                   </div>
                 )}
               </Link>

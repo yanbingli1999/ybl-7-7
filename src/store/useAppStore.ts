@@ -18,6 +18,7 @@ interface AppState {
   setSimulations: (s: SimulationResult[]) => void;
   setCurrentSimulation: (s: SimulationResult | null) => void;
   addSimulation: (s: SimulationResult) => void;
+  updateSimulation: (s: SimulationResult) => void;
   removeSimulation: (id: string) => void;
 }
 
@@ -54,6 +55,11 @@ export const useAppStore = create<AppState>((set) => ({
     set((st) => ({
       simulations: [s, ...st.simulations],
       currentSimulation: s,
+    })),
+  updateSimulation: (s) =>
+    set((st) => ({
+      simulations: st.simulations.map((x) => (x.id === s.id ? s : x)),
+      currentSimulation: st.currentSimulation?.id === s.id ? s : st.currentSimulation,
     })),
   removeSimulation: (id) =>
     set((st) => ({

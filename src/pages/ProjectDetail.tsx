@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Trash2, Play, RefreshCw, BarChart3, AlertTriangle,
   TrendingUp, Target, Layers, History, GitCompare, Pencil, X, Save,
-  Clock, DollarSign, Calendar, Settings, Info, Sparkles,
+  Clock, DollarSign, Calendar, Settings, Info, Sparkles, Star, ShieldCheck,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/store/useAppStore';
 import { formatNumber, formatPercentage } from '../../shared/monteCarlo.js';
-import type { VariableType, CreateVariableDto, UpdateVariableDto, SimulationResult } from '../../shared/types.js';
+import type { VariableType, CreateVariableDto, UpdateVariableDto, SimulationResult, DecisionMark } from '../../shared/types.js';
+import { DECISION_LABELS } from '../../shared/types.js';
 import HistogramChart from '@/components/HistogramChart';
 import SensitivityChart from '@/components/SensitivityChart';
 import StatsCards from '@/components/StatsCards';
@@ -25,7 +26,7 @@ const VARIABLE_TYPE_CONFIG: Record<VariableType, { label: string; color: string;
 export default function ProjectDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { currentProject, simulations, currentSimulation, setCurrentProject, setSimulations, addVariable, updateVariable, removeVariable, addSimulation, removeSimulation, setCurrentSimulation, setLoading, setError } = useAppStore();
+  const { currentProject, simulations, currentSimulation, setCurrentProject, setSimulations, addVariable, updateVariable, removeVariable, addSimulation, updateSimulation, removeSimulation, setCurrentSimulation, setLoading, setError } = useAppStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showVarModal, setShowVarModal] = useState(false);
@@ -158,6 +159,32 @@ export default function ProjectDetail() {
       alert(err instanceof Error ? err.message : '删除失败');
     }
   };
+
+  const handleStarSimulation = async (sim: SimulationResult) => {
+    try {
+      const updated = await api.simulations.update(sim.id, { starred: !sim.starred });
+      updateSimulation(updated);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
+  const handleDecisionSimulation = async (sim: SimulationResult, decision: DecisionMark | null) => {
+    try {
+      const updated = await api.simulations.update(sim.id, { decision });
+      updateSimulation(updated);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
+  const keyDecisionSim = useMemo(() => {
+    const withDecision = simulations.filter((s) => s.starred && s.decision);
+    if (withDecision.length > 0) return withDecision[0];
+    const starred = simulations.filter((s) => s.starred);
+    if (starred.length > 0) return starred[0];
+    return null;
+  }, [simulations]);
 
   const riskLevel = useMemo(() => {
     if (!currentSimulation) return null;
@@ -412,6 +439,8 @@ export default function ProjectDetail() {
               currentId={currentSimulation?.id || null}
               onSelect={setCurrentSimulation}
               onDelete={handleDeleteSimulation}
+              onStar={handleStarSimulation}
+              onDecision={handleDecisionSimulation}
             />
           </section>
 
@@ -442,6 +471,36 @@ export default function ProjectDetail() {
               </div>
             ) : (
               <>
+                {keyDecisionSim && (
+                  <div className={`card border-2 ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].border : 'border-amber-500/40'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].bg : 'bg-amber-500/15'}`}>
+                          <ShieldCheck className={`w-5 h-5 ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].color : 'text-amber-300'}`} />
+                        </div>
+                        <div>
+                          <div className="text-xs text-monte-muted mb-0.5">关键决策版本</div>
+                          <div className="flex items-center gap-2">
+                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                            <span className="text-sm font-semibold text-white">{keyDecisionSim.runName}</span>
+                            {keyDecisionSim.decision && (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${DECISION_LABELS[keyDecisionSim.decision].bg} ${DECISION_LABELS[keyDecisionSim.decision].color} border ${DECISION_LABELS[keyDecisionSim.decision].border}`}>
+                                {DECISION_LABELS[keyDecisionSim.decision].label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold font-mono text-white">{formatNumber(keyDecisionSim.mean, 0)}</div>
+                        <div className="text-xs text-monte-muted">
+                          亏损概率 <span className={`font-mono ${keyDecisionSim.lossProbability > 0.3 ? 'text-monte-danger' : 'text-monte-safe'}`}>{formatPercentage(keyDecisionSim.lossProbability, 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className={`card border-2 ${riskLevel?.border}`}>
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
@@ -455,7 +514,17 @@ export default function ProjectDetail() {
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-monte-muted mb-0.5">模拟名称</div>
-                      <div className="text-sm font-medium text-white">{currentSimulation.runName}</div>
+                      <div className="text-sm font-medium text-white flex items-center gap-1.5 justify-end">
+                        {currentSimulation.starred && <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
+                        {currentSimulation.runName}
+                      </div>
+                      {currentSimulation.decision && (
+                        <div className="mt-1 flex justify-end">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${DECISION_LABELS[currentSimulation.decision].bg} ${DECISION_LABELS[currentSimulation.decision].color} border ${DECISION_LABELS[currentSimulation.decision].border}`}>
+                            {DECISION_LABELS[currentSimulation.decision].label}
+                          </span>
+                        </div>
+                      )}
                       <div className="text-xs text-monte-muted mt-0.5 flex items-center justify-end gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(currentSimulation.timestamp).toLocaleString('zh-CN')}
