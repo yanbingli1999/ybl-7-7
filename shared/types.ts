@@ -79,6 +79,7 @@ export interface SimulationResult {
   variableSamples?: Record<string, number[]>;
   starred?: boolean;
   decision?: DecisionMark | null;
+  keyVersion?: boolean;
 }
 
 export interface CompareRecord {
@@ -133,4 +134,5 @@ export interface CreateCompareDto {
 export interface UpdateSimulationDto {
   starred?: boolean;
   decision?: DecisionMark | null;
+  keyVersion?: boolean;
 }

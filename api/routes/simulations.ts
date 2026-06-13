@@ -69,6 +69,17 @@ router.patch('/:id', (req: Request, res: Response) => {
   const updates: Partial<SimulationResult> = {};
   if (dto.starred !== undefined) updates.starred = dto.starred;
   if (dto.decision !== undefined) updates.decision = dto.decision ?? null;
+  if (dto.keyVersion !== undefined) {
+    if (dto.keyVersion) {
+      const all = simulationsStore.getAll();
+      all.forEach((s) => {
+        if (s.projectId === existing.projectId && s.id !== existing.id && s.keyVersion) {
+          simulationsStore.update(s.id, { keyVersion: false });
+        }
+      });
+    }
+    updates.keyVersion = dto.keyVersion;
+  }
 
   const updated = simulationsStore.update(req.params.id, updates);
   res.json(updated);

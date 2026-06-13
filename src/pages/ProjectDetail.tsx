@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Trash2, Play, RefreshCw, BarChart3, AlertTriangle,
   TrendingUp, Target, Layers, History, GitCompare, Pencil, X, Save,
-  Clock, DollarSign, Calendar, Settings, Info, Sparkles, Star, ShieldCheck,
+  Clock, DollarSign, Calendar, Settings, Info, Sparkles, Star, ShieldCheck, Flag,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/store/useAppStore';
@@ -178,9 +178,26 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleKeyVersionSimulation = async (sim: SimulationResult, isKey: boolean) => {
+    try {
+      const updated = await api.simulations.update(sim.id, { keyVersion: isKey });
+      updateSimulation(updated);
+      if (isKey) {
+        const freshSims = await api.simulations.listByProject(id);
+        setSimulations(freshSims);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
   const keyDecisionSim = useMemo(() => {
-    const withDecision = simulations.filter((s) => s.starred && s.decision);
-    if (withDecision.length > 0) return withDecision[0];
+    const keyVersion = simulations.find((s) => s.keyVersion);
+    if (keyVersion) return keyVersion;
+    const withDecision = simulations.filter((s) => s.decision);
+    if (withDecision.length > 0) {
+      return withDecision.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    }
     const starred = simulations.filter((s) => s.starred);
     if (starred.length > 0) return starred[0];
     return null;
@@ -441,6 +458,7 @@ export default function ProjectDetail() {
               onDelete={handleDeleteSimulation}
               onStar={handleStarSimulation}
               onDecision={handleDecisionSimulation}
+              onKeyVersion={handleKeyVersionSimulation}
             />
           </section>
 
@@ -472,17 +490,23 @@ export default function ProjectDetail() {
             ) : (
               <>
                 {keyDecisionSim && (
-                  <div className={`card border-2 ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].border : 'border-amber-500/40'}`}>
-                    <div className="flex items-center justify-between">
+                  <div className={`card border-2 ${keyDecisionSim.keyVersion ? 'border-monte-accent' : keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].border : 'border-amber-500/40'}`}>
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].bg : 'bg-amber-500/15'}`}>
-                          <ShieldCheck className={`w-5 h-5 ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].color : 'text-amber-300'}`} />
+                        <div className={`p-2.5 rounded-xl ${keyDecisionSim.keyVersion ? 'bg-monte-accent/20' : keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].bg : 'bg-amber-500/15'}`}>
+                          {keyDecisionSim.keyVersion ? (
+                            <Flag className="w-5 h-5 text-monte-accent fill-monte-accent" />
+                          ) : (
+                            <ShieldCheck className={`w-5 h-5 ${keyDecisionSim.decision ? DECISION_LABELS[keyDecisionSim.decision].color : 'text-amber-300'}`} />
+                          )}
                         </div>
                         <div>
-                          <div className="text-xs text-monte-muted mb-0.5">关键决策版本</div>
-                          <div className="flex items-center gap-2">
-                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                          <div className="text-xs text-monte-muted mb-0.5">
+                            {keyDecisionSim.keyVersion ? '关键决策版本（已指定）' : '关键决策版本（默认）'}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold text-white">{keyDecisionSim.runName}</span>
+                            {keyDecisionSim.starred && <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
                             {keyDecisionSim.decision && (
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${DECISION_LABELS[keyDecisionSim.decision].bg} ${DECISION_LABELS[keyDecisionSim.decision].color} border ${DECISION_LABELS[keyDecisionSim.decision].border}`}>
                                 {DECISION_LABELS[keyDecisionSim.decision].label}
@@ -491,10 +515,32 @@ export default function ProjectDetail() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold font-mono text-white">{formatNumber(keyDecisionSim.mean, 0)}</div>
-                        <div className="text-xs text-monte-muted">
-                          亏损概率 <span className={`font-mono ${keyDecisionSim.lossProbability > 0.3 ? 'text-monte-danger' : 'text-monte-safe'}`}>{formatPercentage(keyDecisionSim.lossProbability, 0)}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-lg font-bold font-mono text-white">{formatNumber(keyDecisionSim.mean, 0)}</div>
+                          <div className="text-xs text-monte-muted">
+                            亏损 <span className={`font-mono ${keyDecisionSim.lossProbability > 0.3 ? 'text-monte-danger' : 'text-monte-safe'}`}>{formatPercentage(keyDecisionSim.lossProbability, 0)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setCurrentSimulation(keyDecisionSim)}
+                            className="p-1.5 rounded-md text-monte-muted hover:text-monte-accent hover:bg-monte-accent/10 transition-colors"
+                            title="查看此版本结果"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleKeyVersionSimulation(keyDecisionSim, !keyDecisionSim.keyVersion)}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              keyDecisionSim.keyVersion
+                                ? 'text-monte-accent bg-monte-accent/15'
+                                : 'text-monte-muted hover:text-monte-accent hover:bg-monte-accent/10'
+                            }`}
+                            title={keyDecisionSim.keyVersion ? '取消关键版本' : '指定为关键版本'}
+                          >
+                            <Flag className={`w-3.5 h-3.5 ${keyDecisionSim.keyVersion ? 'fill-monte-accent' : ''}`} />
+                          </button>
                         </div>
                       </div>
                     </div>

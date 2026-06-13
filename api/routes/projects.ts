@@ -24,14 +24,28 @@ router.get('/', (_req: Request, res: Response) => {
     const lastSim = sims.length > 0
       ? (sims[sims.length - 1] as unknown as { timestamp?: string })?.timestamp || null
       : null;
-    const starred = sims.filter(s => s.starred);
-    const keyDecision = starred.find(s => s.decision) || starred[0] || null;
+    const byTime = [...sims].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    let keyDecision: any = null;
+    const keyVersion = byTime.find(s => s.keyVersion);
+    if (keyVersion) {
+      keyDecision = { runName: keyVersion.runName, decision: keyVersion.decision || null, starred: !!keyVersion.starred, mean: keyVersion.mean, lossProbability: keyVersion.lossProbability, keyVersion: true };
+    } else {
+      const withDecision = byTime.find(s => s.decision);
+      if (withDecision) {
+        keyDecision = { runName: withDecision.runName, decision: withDecision.decision, starred: !!withDecision.starred, mean: withDecision.mean, lossProbability: withDecision.lossProbability, keyVersion: false };
+      } else {
+        const starred = byTime.find(s => s.starred);
+        if (starred) {
+          keyDecision = { runName: starred.runName, decision: null, starred: true, mean: starred.mean, lossProbability: starred.lossProbability, keyVersion: false };
+        }
+      }
+    }
     return {
       ...p,
       variableCount: variables.length,
       simulationCount: sims.length,
       lastSimulationAt: lastSim,
-      keyDecision: keyDecision ? { runName: keyDecision.runName, decision: keyDecision.decision || null, starred: true, mean: keyDecision.mean, lossProbability: keyDecision.lossProbability } : null,
+      keyDecision,
     };
   });
   res.json(projectsWithMeta);
